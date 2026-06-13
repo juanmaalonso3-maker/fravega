@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Analizador de Rentabilidad Frávega · Kenta</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Spline+Sans:wght@400;500;600;700&family=Spline+Sans+Mono:wght@400;500;600&display=swap');
+:root{--ink:#16211f;--ink2:#3a4a47;--paper:#f6f3ec;--card:#ffffff;--line:#e2ddd2;--petrol:#0d4f4a;--petrol2:#0a625b;--amber:#c8821a;--pos:#1f7a4d;--neg:#bb2d2d;--warn:#b07415;--dim:#8a8577;}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Spline Sans',sans-serif;background:var(--paper);color:var(--ink);line-height:1.55;-webkit-font-smoothing:antialiased;background-image:radial-gradient(circle at 12% 8%,rgba(13,79,74,.05),transparent 40%),radial-gradient(circle at 90% 0%,rgba(200,130,26,.06),transparent 35%);}
+.wrap{max-width:1180px;margin:0 auto;padding:0 28px 80px}
+.mono{font-family:'Spline Sans Mono',monospace;font-variant-numeric:tabular-nums;letter-spacing:-.2px}
+.r{text-align:right}.dim{color:var(--dim)}.pos{color:var(--pos)}.neg{color:var(--neg)}.warn{color:var(--warn)}
+header{background:linear-gradient(135deg,var(--petrol),var(--petrol2));color:#f3efe4;padding:54px 0 60px;position:relative;overflow:hidden;border-bottom:3px solid var(--amber);}
+header::after{content:"";position:absolute;right:-80px;top:-80px;width:340px;height:340px;border:1px solid rgba(255,255,255,.12);border-radius:50%;}
+header::before{content:"";position:absolute;right:10px;top:40px;width:220px;height:220px;border:1px solid rgba(200,130,26,.35);border-radius:50%;}
+.head-in{max-width:1180px;margin:0 auto;padding:0 28px;position:relative;z-index:2}
+.eyebrow{font-size:12px;letter-spacing:3px;text-transform:uppercase;color:var(--amber);font-weight:600}
+h1{font-family:'Fraunces',serif;font-weight:600;font-size:42px;line-height:1.08;margin:10px 0 6px;letter-spacing:-.5px}
+.sub{color:#cfe0dd;font-size:15px;max-width:720px}
+.meta{margin-top:22px;display:flex;gap:30px;flex-wrap:wrap;font-size:13px;color:#bcd2cf}
+.meta b{color:#fff;font-weight:600;display:block;font-size:15px}.meta span{display:block}
+.section{margin-top:54px}
+.section-head{display:flex;align-items:baseline;gap:14px;margin-bottom:20px}
+.section-head .no{font-family:'Fraunces',serif;font-size:15px;color:var(--amber);font-weight:600}
+h2{font-family:'Fraunces',serif;font-weight:600;font-size:27px;color:var(--ink);letter-spacing:-.3px}
+.section-head .rule{flex:1;height:1px;background:var(--line)}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-top:-34px;position:relative;z-index:5}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px 20px;box-shadow:0 10px 30px -18px rgba(13,79,74,.4)}
+.kpi .lbl{font-size:12px;color:var(--ink2);text-transform:uppercase;letter-spacing:.6px;font-weight:600}
+.kpi .val{font-family:'Fraunces',serif;font-size:29px;font-weight:600;margin-top:8px;letter-spacing:-.5px}
+.kpi .note{font-size:12px;color:var(--dim);margin-top:6px}
+.kpi.hero{background:linear-gradient(160deg,#1a2c29,#13211f);color:#f3efe4;border-color:#1a2c29}
+.kpi.hero .lbl{color:var(--amber)}.kpi.hero .note{color:#9fb3b0}
+.kpi.bad{border-color:#e7c4c4}.kpi.bad .val{color:var(--neg)}
+.kpi.good .val{color:var(--pos)}.kpi.good{border-color:#bfe0cd}
+table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:14px}
+thead th{background:#eef0e9;color:var(--ink2);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.5px;padding:13px 14px;text-align:left;border-bottom:1px solid var(--line)}
+thead th.r{text-align:right}
+tbody td{padding:12px 14px;border-bottom:1px solid #f0ede4}
+tbody tr:last-child td{border-bottom:none}tbody tr:hover{background:#faf8f2}
+tbody tr.struck td{opacity:.4;text-decoration:line-through;text-decoration-color:var(--neg)}
+tbody tr.struck td.keep{text-decoration:none;opacity:1}
+tbody tr.clk{cursor:pointer}
+td.desc{font-weight:500;max-width:260px}
+.tag{background:var(--amber);color:#fff;font-size:10px;font-weight:600;padding:2px 6px;border-radius:5px;vertical-align:middle;letter-spacing:.3px}
+.tag.ex{background:var(--neg)}.tag.in{background:var(--pos)}
+.btnx{font-size:11px;font-weight:600;padding:4px 9px;border-radius:6px;border:1px solid var(--line);background:#fff;cursor:pointer;color:var(--ink2)}
+.btnx:hover{border-color:var(--neg);color:var(--neg)}
+.btnx.on{background:var(--pos);color:#fff;border-color:var(--pos)}
+tfoot td{padding:14px;background:#1a2c29;color:#f3efe4;font-weight:600;font-family:'Spline Sans Mono',monospace}
+tfoot td.r{text-align:right}
+.pl{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.pl-row{display:grid;grid-template-columns:1fr auto;padding:14px 22px;border-bottom:1px solid #f0ede4;align-items:center}
+.pl-row:last-child{border-bottom:none}
+.pl-row .lab{font-size:14.5px}.pl-row .lab small{color:var(--dim);display:block;font-size:12px}
+.pl-row .amt{font-family:'Spline Sans Mono',monospace;font-size:16px;font-variant-numeric:tabular-nums}
+.pl-row.minus .amt{color:var(--neg)}
+.pl-row.sub{background:#f4f6f0}.pl-row.sub .lab{font-weight:600}
+.pl-row.total{background:#1a2c29;color:#f3efe4}.pl-row.total .amt{font-size:19px;font-weight:600}
+.pl-row.total.bad .amt{color:#ff9a9a}.pl-row.total.good .amt{color:#8fe3b3}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+.mk-card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:0;overflow:hidden}
+.mini-h{font-family:'Fraunces',serif;font-size:16px;padding:15px 18px;border-bottom:1px solid var(--line);font-weight:600}
+.mini-h.alert{color:var(--neg)}.mini-h.good{color:var(--pos)}
+.callout{border-radius:10px;padding:20px 22px;margin-top:18px}
+.callout.danger{background:#fbeeee;border:1px solid #e7c4c4;border-left:4px solid var(--neg)}
+.callout.win{background:#eef7f1;border:1px solid #bfe0cd;border-left:4px solid var(--pos)}
+.callout.info{background:#fbf1e3;border:1px solid #ecd4ab;border-left:4px solid var(--amber)}
+.callout h3{font-family:'Fraunces',serif;font-size:18px;margin-bottom:6px}
+.callout p{font-size:14px;color:var(--ink2)}.callout p+p{margin-top:8px}
+.note{margin-top:10px;color:var(--dim);font-size:13px}
+.concl{background:#13211f;color:#e9e4d7;border-radius:16px;padding:36px 38px;margin-top:54px}
+.concl h2{color:#fff}.concl .section-head .rule{background:rgba(255,255,255,.15)}
+.concl ul{list-style:none;margin-top:10px}
+.concl li{padding:12px 0;border-bottom:1px solid rgba(255,255,255,.1);display:flex;gap:14px;font-size:14.5px;color:#d4cec0}
+.concl li:last-child{border:none}.concl li b{color:#fff}
+.concl .ico{color:var(--amber);font-weight:700;font-family:'Fraunces',serif;flex-shrink:0}
+.foot{margin-top:40px;text-align:center;font-size:12px;color:var(--dim);line-height:1.7}
+@media(max-width:860px){.kpis,.grid2{grid-template-columns:1fr 1fr}h1{font-size:32px}.wrap{padding:0 16px 50px}table{font-size:12px}thead th,tbody td{padding:9px 8px}}
+
+
+.up-wrap{max-width:820px;margin:0 auto;padding:50px 28px 80px}
+.up-card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:30px;box-shadow:0 14px 40px -26px rgba(13,79,74,.5)}
+.dz{border:2px dashed var(--line);border-radius:12px;padding:26px;text-align:center;cursor:pointer;transition:.2s;background:#fbfaf6;margin-top:8px}
+.dz:hover,.dz.drag{border-color:var(--petrol);background:#f1f6f4}
+.dz .big{font-family:'Fraunces',serif;font-size:17px;font-weight:600}
+.dz .sm{font-size:13px;color:var(--dim);margin-top:4px}
+.lbl-up{font-weight:600;font-size:14px;margin:22px 0 0;display:flex;align-items:center;gap:8px}
+.lbl-up .n{width:22px;height:22px;border-radius:50%;background:var(--petrol);color:#fff;font-size:12px;display:inline-flex;align-items:center;justify-content:center;font-family:'Spline Sans Mono'}
+.flist{margin-top:10px;display:flex;flex-wrap:wrap;gap:8px;min-height:20px}
+.chip{background:#eef0e9;border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:13px;display:inline-flex;gap:8px;align-items:center}
+.chip span{cursor:pointer;color:var(--neg);font-weight:700}
+.ph{color:var(--dim);font-size:13px;font-style:italic}
+.goBtn{margin-top:28px;width:100%;padding:15px;border:none;border-radius:12px;background:var(--petrol);color:#fff;font-family:'Spline Sans';font-size:16px;font-weight:600;cursor:pointer;transition:.2s}
+.goBtn:hover:not(:disabled){background:var(--petrol2)}
+.goBtn:disabled{background:#cdd4d1;cursor:not-allowed}
+.err{color:var(--neg);font-size:14px;margin-top:14px;text-align:center;font-weight:500}
+.rules{margin-top:26px;font-size:12.5px;color:var(--ink2);background:#fbf1e3;border:1px solid #ecd4ab;border-radius:10px;padding:16px 18px;line-height:1.7}
+.rules b{color:var(--ink)}
+.backbar{max-width:1180px;margin:0 auto;padding:18px 28px 0}
+.backbar button{background:none;border:1px solid var(--line);border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer;color:var(--ink2);font-weight:600}
+.backbar button:hover{border-color:var(--petrol);color:var(--petrol)}
+/* --- login --- */
+#login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:28px}
+.login-card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:44px 40px;max-width:440px;width:100%;text-align:center;box-shadow:0 20px 50px -30px rgba(13,79,74,.55)}
+.login-card .brand{font-family:'Fraunces',serif;font-weight:600;font-size:13px;letter-spacing:3px;text-transform:uppercase;color:var(--amber)}
+.login-card h1{font-family:'Fraunces',serif;font-size:28px;font-weight:600;margin:10px 0 6px;color:var(--ink);line-height:1.15}
+.login-card p{font-size:14px;color:var(--ink2);margin-bottom:26px}
+#gbtn{display:flex;justify-content:center;min-height:44px}
+.login-msg{font-size:13px;margin-top:18px;min-height:18px}
+.login-msg.err{color:var(--neg);font-weight:500}
+.login-foot{font-size:12px;color:var(--dim);margin-top:24px;line-height:1.6}
+.login-card .lock{width:54px;height:54px;border-radius:14px;background:#eef6f3;color:var(--petrol);display:flex;align-items:center;justify-content:center;font-size:24px;margin:0 auto 18px}
+/* --- userbar --- */
+#userbar{position:fixed;top:14px;right:16px;z-index:50;display:none;align-items:center;gap:10px;background:rgba(255,255,255,.92);backdrop-filter:blur(6px);border:1px solid var(--line);border-radius:30px;padding:5px 6px 5px 14px;box-shadow:0 6px 18px -12px rgba(13,79,74,.5)}
+#userbar .ue{font-size:12.5px;color:var(--ink2);font-weight:500}
+#userbar button{border:none;background:var(--petrol);color:#fff;font-size:12px;font-weight:600;padding:6px 12px;border-radius:30px;cursor:pointer}
+#userbar button:hover{background:var(--petrol2)}
+/* --- guardados --- */
+.backbar{display:flex;gap:10px;flex-wrap:wrap}
+.saved-card{margin-top:18px}
+.saved-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.saved-title{font-family:'Fraunces',serif;font-size:18px;font-weight:600}
+.saved-list{display:flex;flex-direction:column;gap:8px}
+.saved-item{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid var(--line);border-radius:10px;padding:11px 14px;background:#fbfaf6}
+.saved-item:hover{border-color:var(--petrol)}
+.si-main{min-width:0}
+.si-t{font-weight:600;font-size:14px}
+.si-sub{font-size:12.5px;color:var(--dim);margin-top:2px}
+</style>
+</head>
+<body>
+
+<!-- ===== LOGIN ===== -->
+<div id="login">
+  <div class="login-card">
+    <div class="lock">🔒</div>
+    <div class="brand">Kenta · Grupo Bitek</div>
+    <h1>Analizador de rentabilidad Frávega</h1>
+    <p>Iniciá sesión con tu cuenta de Google de <b>bitek</b>. Acceso solo para usuarios autorizados.</p>
+    <div id="gbtn"></div>
+    <div class="login-msg" id="login-msg"></div>
+    <div class="login-foot">Tu acceso se valida con Google. El análisis de los Excel se procesa localmente en tu navegador.</div>
+  </div>
+</div>
+
+<!-- ===== USERBAR ===== -->
+<div id="userbar"><span class="ue" id="ue"></span><button onclick="signOut()">Salir</button></div>
+
+<!-- ===== UPLOADER ===== -->
+<div id="uploader" style="display:none">
+  <header><div class="head-in">
+    <div class="eyebrow">Herramienta reutilizable · Marketplace</div>
+    <h1>Analizador de rentabilidad Frávega</h1>
+    <div class="sub">Cargá los reportes de ventas del mes y el archivo de costos. La herramienta netea devoluciones, segrega IVA y calcula la rentabilidad real por SKU. No se sube nada a ningún servidor: todo se procesa en tu navegador.</div>
+  </div></header>
+
+  <div class="up-wrap">
+    <div class="up-card">
+      <div class="lbl-up"><span class="n">1</span> Reportes de ventas Frávega (1 o más .xlsx)</div>
+      <div class="dz" id="salesZone" onclick="document.getElementById('salesInp').click()">
+        <div class="big">Arrastrá o hacé clic para elegir</div>
+        <div class="sm">Ej: 1Q_MAYO.xlsx, 2Q_MAYO.xlsx — podés cargar las dos quincenas juntas</div>
+      </div>
+      <input type="file" id="salesInp" accept=".xlsx,.xls" multiple style="display:none" onchange="addSales(this.files);this.value=''">
+      <div class="flist" id="salesList"></div>
+
+      <div class="lbl-up"><span class="n">2</span> Archivo de costos (SKU · IVA · costo)</div>
+      <div class="dz" id="costZone" onclick="document.getElementById('costInp').click()">
+        <div class="big">Arrastrá o hacé clic para elegir</div>
+        <div class="sm">Ej: FINANZAS_FRAVEGA.xlsx — columnas SKU FRAVEGA, IVA CONTENIDO, COSTO SIN IVA</div>
+      </div>
+      <input type="file" id="costInp" accept=".xlsx,.xls" style="display:none" onchange="setCost(this.files);this.value=''">
+      <div class="flist" id="costList"></div>
+
+      <button class="goBtn" id="goBtn" onclick="go()" disabled>Generar análisis</button>
+      <div class="err" id="err"></div>
+
+      <div class="rules">
+        <b>Reglas aplicadas:</b> se excluyen las operaciones de tipo "Devolución"; las que coinciden con una venta del período (mismo Orden) se netean (se descuenta venta y CMV). La comisión comercial usa la "Comisión Base" (15%); la financiera usa el valor en $ por producto. Ingresos y costos se calculan netos de IVA (alícuota por SKU del archivo de costos: 21% / 10,5% / etc.). IVA de comisiones y fee logístico: 21%.
+      </div>
+    </div>
+
+    <div class="up-card saved-card">
+      <div class="saved-head">
+        <div class="saved-title">Análisis guardados</div>
+        <button class="btnx" onclick="loadSaved()">↻ Actualizar</button>
+      </div>
+      <div class="saved-list" id="savedList"><span class="ph">Cargando…</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== REPORTE ===== -->
+<div id="report" style="display:none">
+  <div class="backbar"><button onclick="backToUpload()">← Cargar otros archivos</button><button id="saveBtn" onclick="saveAnalysis()">💾 Guardar análisis</button></div>
+  <header><div class="head-in">
+    <div class="eyebrow">Análisis Financiero · Marketplace</div>
+    <h1>Rentabilidad operación Frávega</h1>
+    <div class="sub">Margen bruto y resultado neto real, con devoluciones neteadas e IVA segregado. Tocá un SKU en el detalle para incluirlo o excluirlo.</div>
+  </div></header>
+  <div class="wrap">
+    <div class="kpis" id="kpis"></div>
+    <div id="callout"></div>
+    <div class="section"><div class="section-head"><span class="no">01</span><h2>Facturación</h2><span class="rule"></span></div><div id="sec-fact"></div></div>
+    <div class="section"><div class="section-head"><span class="no">02</span><h2>Costo de Mercadería Vendida</h2><span class="rule"></span></div><div id="sec-cmv"></div></div>
+    <div class="section"><div class="section-head"><span class="no">03</span><h2>Costos de Marketplace</h2><span class="rule"></span></div><div id="sec-mk"></div></div>
+    <div class="section"><div class="section-head"><span class="no">04</span><h2>Resultado Neto de la operación</h2><span class="rule"></span></div><div id="sec-resultado"></div></div>
+    <div class="section"><div class="section-head"><span class="no">05</span><h2>Análisis por SKU</h2><span class="rule"></span></div><div id="sec-rankings"></div></div>
+    <div class="section"><div class="section-head"><span class="no">06</span><h2>Detalle completo por SKU</h2><span class="rule"></span></div><div id="sec-detalle"></div></div>
+    <div class="concl"><div class="section-head"><span class="no" style="color:var(--amber)">07</span><h2>Conclusiones ejecutivas</h2><span class="rule"></span></div><ul id="conclusions-list"></ul></div>
+    <div class="foot">Procesado localmente en tu navegador · rentabilidad sobre valores netos de IVA · Kenta · Grupo Bitek SRL</div>
+  </div>
+</div>
+
+<script>
+/* ===================== AUTH — replicado de GarantApp ===================== */
+const AUTH_CONFIG = {
+  // Client ID de bitek (proyecto garantapp-bitek)
+  CLIENT_ID: "849214701404-ff11l3oo5k9hecabvf99cnbbgjlegeam.apps.googleusercontent.com",
+  // Emails individuales autorizados (se suman al dominio)
+  ALLOWED_EMAILS: ["bitekmeli@gmail.com", "juanma.alonso3@gmail.com"],
+  // Dominio autorizado: cualquier @bitek.com.ar entra
+  ALLOWED_DOMAINS: ["bitek.com.ar"],
+  // Apps Script Web App del ANALIZADOR (planilla nueva).
+  WEBAPP_URL: "https://script.google.com/macros/s/AKfycbwH77QI_-dJ9cFFCpb6NMewDWly3NJQeXr0dt6YBVykt5g4YQ8Xs6YbwEczJDTzHTOg7Q/exec",
+};
+const IS_BACKEND = AUTH_CONFIG.WEBAPP_URL.indexOf('PEGA_ACA') < 0;
+const SESSION_KEY = "analizador_fravega_session_v1";
+const _mem = {};
+const store = {
+  get: k => { try { return localStorage.getItem(k); } catch { return _mem[k] ?? null; } },
+  set: (k,v) => { try { localStorage.setItem(k,v); } catch { _mem[k]=v; } },
+  del: k => { try { localStorage.removeItem(k); } catch { delete _mem[k]; } },
+};
+const parseJWT = t => { try { return JSON.parse(atob(t.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))); } catch { return null; } };
+const isAllowed = email => {
+  const e = (email||'').toLowerCase();
+  if (AUTH_CONFIG.ALLOWED_EMAILS.map(x=>x.toLowerCase()).includes(e)) return true;
+  return AUTH_CONFIG.ALLOWED_DOMAINS.map(x=>x.toLowerCase()).includes(e.split('@')[1]);
+};
+async function apiAuth(credential){
+  const res = await fetch(AUTH_CONFIG.WEBAPP_URL, {
+    method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify({ action:'auth', credential })
+  });
+  return res.json();
+}
+function loadSession(){ try { const r=store.get(SESSION_KEY); if(!r) return null; const s=JSON.parse(r); return s.expiresAt>Date.now()?s:null; } catch { return null; } }
+function saveSession(s){ store.set(SESSION_KEY, JSON.stringify(s)); }
+function clearSession(){ store.del(SESSION_KEY); }
+
+/* ---- API de datos (Google Sheets vía Apps Script) ---- */
+function currentToken(){ const s=loadSession(); return s ? s.session : null; }
+async function apiCall(payload){
+  const res = await fetch(AUTH_CONFIG.WEBAPP_URL, {
+    method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify({ ...payload, session: currentToken() })
+  });
+  const d = await res.json();
+  if (d.needsLogin){ clearSession(); showLogin(); throw new Error('Sesión expirada, volvé a iniciar sesión.'); }
+  if (!d.ok) throw new Error(d.error || 'Error de la API');
+  return d;
+}
+async function saveAnalysis(){
+  if (!IS_BACKEND){ alert('Falta configurar el WEBAPP_URL del Apps Script para poder guardar.'); return; }
+  const etiqueta = prompt('Nombre para este análisis (ej: Mayo 2026):', '');
+  if (etiqueta === null) return;
+  const inc = withResult(DATA.filter(r=>!EXCLUDED.has(r.sku)));
+  const t = computeTotals(inc);
+  const btn = document.getElementById('saveBtn'); const old = btn ? btn.textContent : '';
+  if (btn){ btn.disabled=true; btn.textContent='Guardando…'; }
+  try{
+    await apiCall({ action:'fravega_save', record:{
+      etiqueta: etiqueta || ('Análisis '+new Date().toLocaleDateString('es-AR')),
+      unidades: t.u, fact_neta: Math.round(t.fn), cmv: Math.round(t.cmv),
+      resultado_neto: Math.round(t.rn), margen_neto: +(t.mn).toFixed(4),
+      payload: { data: DATA, meta: META, excluded: [...EXCLUDED] }
+    }});
+    if (btn){ btn.textContent='✓ Guardado'; setTimeout(()=>{btn.textContent=old;btn.disabled=false;},1800); }
+  }catch(e){ alert('No se pudo guardar: '+e.message); if(btn){btn.textContent=old;btn.disabled=false;} }
+}
+async function loadSaved(){
+  const box = document.getElementById('savedList'); if(!box) return;
+  if (!IS_BACKEND){ box.innerHTML='<span class="ph">Configurá el WEBAPP_URL del Apps Script para ver los análisis guardados.</span>'; return; }
+  box.innerHTML='<span class="ph">Cargando…</span>';
+  try{
+    const d = await apiCall({ action:'fravega_list' });
+    if(!d.records.length){ box.innerHTML='<span class="ph">Todavía no hay análisis guardados.</span>'; return; }
+    box.innerHTML = d.records.map(r=>{
+      const res = Number(r.resultado_neto)||0, cls = res<0?'neg':'pos';
+      const fecha = r.fecha ? new Date(r.fecha).toLocaleDateString('es-AR') : '';
+      return `<div class="saved-item">
+        <div class="si-main"><div class="si-t">${r.etiqueta||'(sin nombre)'}</div>
+        <div class="si-sub">${fecha} · ${r.usuario||''} · ${num(Number(r.unidades)||0)} u · <span class="${cls}">${ars(res)}</span></div></div>
+        <button class="btnx" onclick="openSaved('${r.id}')">Abrir</button></div>`;
+    }).join('');
+  }catch(e){ box.innerHTML='<span class="ph">No se pudo cargar: '+e.message+'</span>'; }
+}
+async function openSaved(id){
+  try{
+    const d = await apiCall({ action:'fravega_get', id:id });
+    const p = d.record.payload||{};
+    DATA = p.data||[]; META = p.meta||{}; EXCLUDED = new Set(p.excluded||[]);
+    render();
+  }catch(e){ alert('No se pudo abrir: '+e.message); }
+}
+function setMsg(html, err){ const m=document.getElementById('login-msg'); if(!m) return; m.className='login-msg'+(err?' err':''); m.innerHTML=html||''; }
+
+function loadGsi(cb){
+  if (window.google?.accounts?.id){ cb(); return; }
+  const ex=document.getElementById('gsi-script');
+  if (ex){ ex.addEventListener('load',cb); }
+  let tries=0; const t=setInterval(()=>{
+    if (window.google?.accounts?.id){ clearInterval(t); cb(); }
+    else if (++tries>50){ clearInterval(t); setMsg('No se pudo cargar Google. Revisá tu conexión o si hay un bloqueador de anuncios activo.', true); }
+  },150);
+}
+function renderGoogleButton(){
+  try{
+    google.accounts.id.initialize({ client_id: AUTH_CONFIG.CLIENT_ID, callback: handleCredential, auto_select:false });
+    google.accounts.id.renderButton(document.getElementById('gbtn'), { theme:'filled_blue', size:'large', text:'signin_with', shape:'pill', logo_alignment:'left', width:280 });
+  }catch(e){ setMsg('No se pudo inicializar el login de Google: '+(e&&e.message?e.message:e), true); }
+}
+async function handleCredential(resp){
+  setMsg('⟳ Validando acceso…', false);
+  const p = parseJWT(resp.credential);
+  if (p && !isAllowed(p.email)){ setMsg('⚠️ Acceso no autorizado. Usá tu cuenta @bitek.com.ar.', true); if(window.google?.accounts?.id) google.accounts.id.disableAutoSelect(); return; }
+  try{
+    const r = await apiAuth(resp.credential);
+    if (!r.ok){ setMsg('⚠️ '+(r.error||'Acceso no autorizado.'), true); return; }
+    saveSession({ session:r.session, email:r.user.email, name:r.user.name, picture:r.user.picture, expiresAt:r.user.exp });
+    showApp(r.user.email);
+  }catch(e){ setMsg('⚠️ No se pudo validar con el servidor. Verificá tu conexión e intentá de nuevo.', true); }
+}
+function showApp(email){
+  document.getElementById('login').style.display='none';
+  document.getElementById('uploader').style.display='block';
+  const ub=document.getElementById('userbar'); ub.style.display='flex';
+  document.getElementById('ue').textContent=email||'';
+  loadSaved();
+}
+function showLogin(){
+  document.getElementById('login').style.display='flex';
+  document.getElementById('uploader').style.display='none';
+  document.getElementById('report').style.display='none';
+  document.getElementById('userbar').style.display='none';
+  setMsg('');
+  if (!IS_BACKEND){ setMsg('⚠️ Falta pegar la URL del Apps Script (WEBAPP_URL) para activar el acceso.', true); return; }
+  loadGsi(renderGoogleButton);
+}
+function signOut(){
+  clearSession();
+  if (window.google?.accounts?.id) google.accounts.id.disableAutoSelect();
+  showLogin();
+}
+function initAuth(){
+  const s = loadSession();
+  if (s){ showApp(s.email); } else { showLogin(); }
+}
+/* ===================== /AUTH ===================== */
+
+const XLSX_OK = typeof XLSX !== 'undefined';
+const IVA_SERV = 0.21;
+let DATA=[], META={}, EXCLUDED=new Set();
+
+const nf0=new Intl.NumberFormat('es-AR',{minimumFractionDigits:0,maximumFractionDigits:0});
+const ars=x=>'$ '+nf0.format(Math.round(x));
+const num=x=>nf0.format(x);
+const pct=x=>(x*100).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2})+' %';
+const mcls=m=>m<0?'neg':(m<0.10?'warn':'pos');
+const norm=s=>String(s==null?'':s).trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+function skuKey(v){if(v==null||v==='')return null;const s=String(v).trim();return /^\d+(\.0+)?$/.test(s)?String(parseInt(s,10)):s;}
+function toNum(v){if(v==null||v==='')return 0;if(typeof v==='number')return v;const n=parseFloat(String(v).replace(/\./g,'').replace(',','.'));return isFinite(n)?n:0;}
+
+function colIndex(headers, names){
+  const H=headers.map(norm);
+  for(const n of names){const i=H.indexOf(norm(n));if(i>=0)return i;}
+  // contains fallback
+  for(const n of names){const i=H.findIndex(h=>h.includes(norm(n)));if(i>=0)return i;}
+  return -1;
+}
+
+async function readWB(file){
+  const buf=await file.arrayBuffer();
+  return XLSX.read(buf,{type:'array'});
+}
+function pickSheet(wb, mustHave){
+  // prefer exact known names then sheet whose header includes mustHave terms
+  for(const want of ['Detalle de Operaciones','Finanzas Fravega']){
+    if(wb.SheetNames.includes(want)) {
+      const rows=XLSX.utils.sheet_to_json(wb.Sheets[want],{header:1,blankrows:false});
+      if(rows.length){const h=rows[0].map(norm); if(mustHave.every(m=>h.some(x=>x.includes(norm(m))))) return rows;}
+    }
+  }
+  let best=null,bestScore=-1;
+  for(const sn of wb.SheetNames){
+    const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,blankrows:false});
+    if(!rows.length)continue;
+    const h=rows[0].map(norm);
+    const score=mustHave.filter(m=>h.some(x=>x.includes(norm(m)))).length;
+    if(score>bestScore){bestScore=score;best=rows;}
+  }
+  return bestScore>=mustHave.length?best:null;
+}
+
+async function processFiles(salesFiles, costFile){
+  const warn=[];
+  // ---- cost map ----
+  const cwb=await readWB(costFile);
+  const crows=pickSheet(cwb,['SKU FRAVEGA','COSTO SIN IVA']);
+  if(!crows) throw new Error('No encontré la hoja de costos con columnas "SKU FRAVEGA" y "COSTO SIN IVA".');
+  const ch=crows[0];
+  const ciSku=colIndex(ch,['SKU FRAVEGA']), ciDesc=colIndex(ch,['DESCRIPCION','Descripción']),
+        ciIva=colIndex(ch,['IVA CONTENIDO','IVA']), ciSin=colIndex(ch,['COSTO SIN IVA']);
+  const cost={};
+  for(let i=1;i<crows.length;i++){const r=crows[i];if(!r||r[ciSku]==null||r[ciSku]==='')continue;
+    const k=skuKey(r[ciSku]); let iva=toNum(r[ciIva]); if(iva>1)iva=iva/100; if(!iva)iva=0.21;
+    cost[k]={desc:r[ciDesc]||k, iva, sin:toNum(r[ciSin])};}
+
+  // ---- sales ----
+  let fact=[], dev=[];
+  for(const f of salesFiles){
+    const wb=await readWB(f);
+    const rows=pickSheet(wb,['Tipo de operacion','Sku']);
+    if(!rows){warn.push('No encontré "Detalle de Operaciones" en '+f.name+' — archivo omitido.');continue;}
+    const h=rows[0];
+    const iTipo=colIndex(h,['Tipo de operacion']), iOrden=colIndex(h,['Orden']),
+      iSku=colIndex(h,['Sku']), iVal=colIndex(h,['Valor del sku']),
+      iBase=colIndex(h,['Valor Comisión Base','Valor Comision Base']),
+      iFin=colIndex(h,['Valor Comisión Financiera','Valor Comision Financiera']),
+      iFee=colIndex(h,['Fee logistico','Fee logístico']);
+    for(let i=1;i<rows.length;i++){const r=rows[i];if(!r||r[iTipo]==null)continue;
+      const tipo=norm(r[iTipo]);
+      if(tipo.includes('factura')) fact.push({orden:String(r[iOrden]),sku:skuKey(r[iSku]),
+        valor:toNum(r[iVal]),com_base:toNum(r[iBase]),com_fin:toNum(r[iFin]),fee:toNum(r[iFee]),returned:false});
+      else if(tipo.includes('devoluc')) dev.push({orden:String(r[iOrden]),valor:toNum(r[iVal])});
+    }
+  }
+  if(!fact.length) throw new Error('No se encontraron operaciones de tipo "Facturación" en los archivos de ventas.');
+
+  // ---- netear devoluciones contra facturaciones (mismo Orden, valor más cercano) ----
+  const byOrder={};
+  fact.forEach((f,idx)=>{(byOrder[f.orden]=byOrder[f.orden]||[]).push(idx);});
+  let netted=0, devSinMatch=0;
+  for(const d of dev){
+    const cands=(byOrder[d.orden]||[]).filter(i=>!fact[i].returned);
+    if(!cands.length){devSinMatch++;continue;}
+    let best=cands[0],bd=Infinity;
+    for(const i of cands){const diff=Math.abs(fact[i].valor-d.valor);if(diff<bd){bd=diff;best=i;}}
+    fact[best].returned=true; netted++;
+  }
+  const live=fact.filter(f=>!f.returned);
+
+  // ---- SKUs sin costo ----
+  const missing={};
+  live.forEach(f=>{if(!cost[f.sku]){missing[f.sku]=(missing[f.sku]||0)+1;}});
+  const liveOk=live.filter(f=>cost[f.sku]);
+  if(Object.keys(missing).length){
+    const tot=Object.values(missing).reduce((a,b)=>a+b,0);
+    warn.push('Hay '+Object.keys(missing).length+' SKU vendidos sin costo en el archivo de costos ('+tot+' unidades). Se excluyeron del análisis: '+Object.keys(missing).join(', '));
+  }
+
+  // ---- agregar por SKU ----
+  const agg={};
+  liveOk.forEach(f=>{const c=cost[f.sku];const d=agg[f.sku]||(agg[f.sku]={sku:f.sku,desc:c.desc,u:0,fact_neta:0,fact_bruta:0,cmv:0,com_com:0,com_fin:0,log:0,iva:c.iva});
+    d.u++;d.fact_bruta+=f.valor;d.fact_neta+=f.valor/(1+c.iva);d.cmv+=c.sin;d.com_com+=f.com_base;d.com_fin+=f.com_fin;d.log+=f.fee;});
+  DATA=Object.values(agg);
+  META={facLines:fact.length, devTotal:dev.length, netted, devSinMatch, warn, salesFiles:salesFiles.map(f=>f.name)};
+  EXCLUDED=new Set();
+}
+
+function withResult(rows){return rows.map(r=>{const res=r.fact_neta-r.cmv-r.com_com-r.com_fin-r.log;return{...r,result:res,margen:r.fact_neta?res/r.fact_neta:0};});}
+function computeTotals(rows){const t={u:0,fb:0,fn:0,cmv:0,cc:0,cf:0,log:0};
+  rows.forEach(r=>{t.u+=r.u;t.fb+=r.fact_bruta;t.fn+=r.fact_neta;t.cmv+=r.cmv;t.cc+=r.com_com;t.cf+=r.com_fin;t.log+=r.log;});
+  t.iva_v=t.fb-t.fn;t.mk=t.cc+t.cf+t.log;t.contrib=t.fn-t.cmv;t.mb=t.fn?t.contrib/t.fn:0;
+  t.rn=t.fn-t.cmv-t.cc-t.cf-t.log;t.mn=t.fn?t.rn/t.fn:0;t.ticket=t.u?t.fn/t.u:0;return t;}
+
+function toggleSku(s){if(EXCLUDED.has(s))EXCLUDED.delete(s);else EXCLUDED.add(s);render();}
+function resetExcl(){EXCLUDED=new Set();render();}
+
+function render(){
+  document.getElementById('report').style.display='block';
+  document.getElementById('uploader').style.display='none';
+  const inc=withResult(DATA.filter(r=>!EXCLUDED.has(r.sku)));
+  const t=computeTotals(inc);
+  const allR=withResult(DATA).sort((a,b)=>b.result-a.result);
+  const worst=allR[allR.length-1];
+
+  document.getElementById('kpis').innerHTML=`
+    <div class="kpi"><div class="lbl">Facturación neta</div><div class="val">${ars(t.fn)}</div><div class="note">s/IVA · bruta ${ars(t.fb)}</div></div>
+    <div class="kpi"><div class="lbl">Contribución bruta</div><div class="val pos">${ars(t.contrib)}</div><div class="note">Margen bruto ${pct(t.mb)}</div></div>
+    <div class="kpi ${t.rn<0?'bad':'good'}"><div class="lbl">Resultado neto</div><div class="val">${ars(t.rn)}</div><div class="note">Margen neto ${pct(t.mn)}</div></div>
+    <div class="kpi hero"><div class="lbl">Costos marketplace</div><div class="val">${ars(t.mk)}</div><div class="note">netos · ${pct(t.fn?t.mk/t.fn:0)} s/ fact. neta</div></div>`;
+
+  // info banner
+  let banner='';
+  if(META.warn && META.warn.length) banner+=`<div class="callout info"><h3>Avisos de carga</h3>${META.warn.map(w=>'<p>• '+w+'</p>').join('')}</div>`;
+  if(EXCLUDED.size) banner+=`<div class="callout info"><h3>${EXCLUDED.size} SKU excluido(s) del cálculo</h3><p>${[...EXCLUDED].join(', ')} — <a href="#" onclick="resetExcl();return false;" style="color:var(--petrol);font-weight:600">restaurar todos</a></p></div>`;
+  document.getElementById('callout').innerHTML=banner;
+
+  document.getElementById('sec-fact').innerHTML=`<div class="pl">
+    <div class="pl-row"><div class="lab">Facturación bruta <small>valor de productos con IVA incluido</small></div><div class="amt">${ars(t.fb)}</div></div>
+    <div class="pl-row minus"><div class="lab">IVA débito fiscal <small>según alícuota de cada producto</small></div><div class="amt">− ${ars(t.iva_v)}</div></div>
+    <div class="pl-row sub total"><div class="lab">Facturación neta (sin IVA)</div><div class="amt">${ars(t.fn)}</div></div></div>
+    <p class="note">Ticket promedio neto: <b class="mono">${ars(t.ticket)}</b> · ${num(t.u)} unidades. Devoluciones: ${META.devTotal} (${META.netted} neteadas contra ventas del período — venta y CMV; ${META.devSinMatch} de períodos previos, sólo excluidas).</p>`;
+
+  document.getElementById('sec-cmv').innerHTML=`<div class="pl">
+    <div class="pl-row"><div class="lab">Facturación neta</div><div class="amt">${ars(t.fn)}</div></div>
+    <div class="pl-row minus"><div class="lab">CMV neto <small>costo unitario sin IVA × unidades</small></div><div class="amt">− ${ars(t.cmv)}</div></div>
+    <div class="pl-row total"><div class="lab">Contribución bruta · Margen ${pct(t.mb)}</div><div class="amt">${ars(t.contrib)}</div></div></div>`;
+
+  const mkRow=(n,v)=>`<tr><td class="desc">${n}</td><td class="r mono">${ars(v)}</td><td class="r mono">${ars(v*IVA_SERV)}</td><td class="r mono">${ars(v*(1+IVA_SERV))}</td><td class="r mono">${pct(t.fn?v/t.fn:0)}</td></tr>`;
+  document.getElementById('sec-mk').innerHTML=`<table><thead><tr><th>Concepto</th><th class="r">Neto (s/IVA)</th><th class="r">IVA 21%</th><th class="r">Total c/IVA</th><th class="r">% s/ fact. neta</th></tr></thead>
+    <tbody>${mkRow('Comisión comercial <span class="dim">(base 15%)</span>',t.cc)}${mkRow('Comisión financiera <span class="dim">(valor por producto)</span>',t.cf)}${mkRow('Fee logístico',t.log)}</tbody>
+    <tfoot><tr><td>Total costos marketplace</td><td class="r">${ars(t.mk)}</td><td class="r">${ars(t.mk*IVA_SERV)}</td><td class="r">${ars(t.mk*(1+IVA_SERV))}</td><td class="r">${pct(t.fn?t.mk/t.fn:0)}</td></tr></tfoot></table>
+    <p class="note">El IVA de comisiones y fee es crédito fiscal recuperable; la rentabilidad se calcula sobre valores netos.</p>`;
+
+  document.getElementById('sec-resultado').innerHTML=`<div class="pl">
+    <div class="pl-row"><div class="lab">Facturación neta</div><div class="amt">${ars(t.fn)}</div></div>
+    <div class="pl-row minus"><div class="lab">CMV neto</div><div class="amt">− ${ars(t.cmv)}</div></div>
+    <div class="pl-row sub"><div class="lab">= Contribución bruta · ${pct(t.mb)}</div><div class="amt mono">${ars(t.contrib)}</div></div>
+    <div class="pl-row minus"><div class="lab">Comisión comercial (15%)</div><div class="amt">− ${ars(t.cc)}</div></div>
+    <div class="pl-row minus"><div class="lab">Comisión financiera</div><div class="amt">− ${ars(t.cf)}</div></div>
+    <div class="pl-row minus"><div class="lab">Fee logístico</div><div class="amt">− ${ars(t.log)}</div></div>
+    <div class="pl-row total ${t.rn<0?'bad':'good'}"><div class="lab">Resultado neto · Margen ${pct(t.mn)}</div><div class="amt">${ars(t.rn)}</div></div></div>`;
+
+  const byVol=[...inc].sort((a,b)=>b.u-a.u).slice(0,5);
+  const byRent=[...inc].sort((a,b)=>b.result-a.result).slice(0,5);
+  const byWorst=[...inc].sort((a,b)=>a.result-b.result).slice(0,5);
+  const mini=(r,mode)=>{const v=mode==='u'?`<span class="mono">${num(r.u)} u</span>`:`<span class="mono ${r.result<0?'neg':'pos'}">${ars(r.result)}</span>`;
+    return `<tr><td class="desc"><span class="mono dim">${r.sku}</span><br>${r.desc}</td><td class="r mono">${num(r.u)} u</td><td class="r">${v}</td><td class="r mono ${mcls(r.margen)}">${pct(r.margen)}</td></tr>`;};
+  document.getElementById('sec-rankings').innerHTML=`<div class="grid2">
+    <div class="mk-card"><div class="mini-h">Top 5 por volumen</div><table><thead><tr><th>Producto</th><th class="r">Unid.</th><th class="r">Unid.</th><th class="r">Margen</th></tr></thead><tbody>${byVol.map(r=>mini(r,'u')).join('')}</tbody></table></div>
+    <div class="mk-card"><div class="mini-h good">Top 5 por rentabilidad</div><table><thead><tr><th>Producto</th><th class="r">Unid.</th><th class="r">Resultado</th><th class="r">Margen</th></tr></thead><tbody>${byRent.map(r=>mini(r,'res')).join('')}</tbody></table></div></div>
+    <div class="mk-card" style="margin-top:22px"><div class="mini-h alert">Top 5 peores — destructores de rentabilidad</div><table><thead><tr><th>Producto</th><th class="r">Unid.</th><th class="r">Resultado</th><th class="r">Margen</th></tr></thead><tbody>${byWorst.map(r=>mini(r,'res')).join('')}</tbody></table></div>`;
+
+  const tb=allR.map(r=>{const ex=EXCLUDED.has(r.sku);
+    const ivaTag=Math.abs(r.iva-0.105)<1e-6?' <span class="tag">10,5%</span>':'';
+    const exTag=ex?' <span class="tag ex">EXCLUIDA</span>':'';
+    const rc=r.result<0?'neg':'pos';
+    const btn=`<button class="btnx ${ex?'on':''}" onclick="event.stopPropagation();toggleSku('${r.sku}')">${ex?'incluir':'excluir'}</button>`;
+    return `<tr class="clk ${ex?'struck':''}" onclick="toggleSku('${r.sku}')">
+      <td class="mono">${r.sku}</td><td class="desc keep">${r.desc}${ivaTag}${exTag}</td>
+      <td class="r mono">${num(r.u)}</td><td class="r mono">${ars(r.fact_neta)}</td><td class="r mono">${ars(r.cmv)}</td>
+      <td class="r mono">${ars(r.com_com)}</td><td class="r mono">${ars(r.com_fin)}</td><td class="r mono">${ars(r.log)}</td>
+      <td class="r mono ${rc}"><b>${ars(r.result)}</b></td><td class="r mono ${mcls(r.margen)}">${pct(r.margen)}</td>
+      <td class="r keep">${btn}</td></tr>`;}).join('');
+  document.getElementById('sec-detalle').innerHTML=`<p class="note" style="margin-top:0;margin-bottom:12px">Tocá cualquier fila (o el botón) para incluir/excluir ese SKU del cálculo. Todo se recalcula al instante.</p>
+    <table><thead><tr><th>SKU</th><th>Descripción</th><th class="r">Unid.</th><th class="r">Fact. neta</th><th class="r">CMV</th><th class="r">Com. com.</th><th class="r">Com. fin.</th><th class="r">Logística</th><th class="r">Resultado</th><th class="r">Margen</th><th class="r">Acción</th></tr></thead>
+    <tbody>${tb}</tbody>
+    <tfoot><tr><td colspan="2">TOTAL ${EXCLUDED.size?'(con exclusiones)':''}</td><td class="r">${num(t.u)}</td><td class="r">${ars(t.fn)}</td><td class="r">${ars(t.cmv)}</td><td class="r">${ars(t.cc)}</td><td class="r">${ars(t.cf)}</td><td class="r">${ars(t.log)}</td><td class="r">${ars(t.rn)}</td><td class="r">${pct(t.mn)}</td><td></td></tr></tfoot></table>`;
+
+  const c=[];
+  c.push(`El período cierra con un resultado neto de <b>${ars(t.rn)} (${pct(t.mn)})</b> sobre ${num(t.u)} unidades. El margen bruto es ${pct(t.mb)} y los costos de marketplace pesan ${pct(t.fn?t.mk/t.fn:0)} de la facturación neta.`);
+  if(worst && worst.result<0) c.push(`El producto que más resta es <b>${worst.desc}</b> (${worst.sku}): ${num(worst.u)} u con resultado <b>${ars(worst.result)}</b> (${pct(worst.margen)}). Excluyéndolo, el total mejora ${ars(-worst.result)}.`);
+  const best=allR[0]; if(best) c.push(`El que más aporta es <b>${best.desc}</b>: ${ars(best.result)} (${pct(best.margen)}).`);
+  c.push(`Recomendación: fijar un piso de contribución por publicación que cubra comisión + logística, re-precificar los SKU de margen negativo y priorizar el catálogo de alto margen.`);
+  document.getElementById('conclusions-list').innerHTML=c.map((x,i)=>`<li><span class="ico">0${i+1}</span><div>${x}</div></li>`).join('');
+  document.getElementById('report').scrollIntoView({behavior:'smooth'});
+}
+
+// ---------- UI carga ----------
+let salesStore=[], costStore=null;
+function refreshLists(){
+  document.getElementById('salesList').innerHTML=salesStore.length?salesStore.map((f,i)=>`<div class="chip">📄 ${f.name} <span onclick="salesStore.splice(${i},1);refreshLists()">✕</span></div>`).join(''):'<span class="ph">Ningún archivo de ventas cargado</span>';
+  document.getElementById('costList').innerHTML=costStore?`<div class="chip">📄 ${costStore.name} <span onclick="costStore=null;refreshLists()">✕</span></div>`:'<span class="ph">Ningún archivo de costos cargado</span>';
+  document.getElementById('goBtn').disabled=!(salesStore.length&&costStore);
+}
+function addSales(files){for(const f of files)salesStore.push(f);refreshLists();}
+function setCost(files){if(files[0])costStore=files[0];refreshLists();}
+async function go(){
+  const btn=document.getElementById('goBtn');btn.disabled=true;btn.textContent='Procesando…';
+  document.getElementById('err').textContent='';
+  try{await processFiles(salesStore,costStore);render();}
+  catch(e){document.getElementById('err').textContent='⚠ '+e.message;btn.disabled=false;btn.textContent='Generar análisis';}
+}
+function backToUpload(){document.getElementById('report').style.display='none';document.getElementById('uploader').style.display='block';window.scrollTo({top:0,behavior:'smooth'});}
+window.addEventListener('DOMContentLoaded',()=>{
+  if(!XLSX_OK){document.getElementById('err').textContent='⚠ No se pudo cargar la librería de lectura de Excel (necesitás conexión a internet la primera vez).';}
+  ['sales','cost'].forEach(id=>{const dz=document.getElementById(id+'Zone');
+    dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag');});
+    dz.addEventListener('dragleave',()=>dz.classList.remove('drag'));
+    dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('drag');const fs=e.dataTransfer.files;id==='sales'?addSales(fs):setCost(fs);});});
+  refreshLists();
+  initAuth();
+});
+</script>
+</body>
+</html>
