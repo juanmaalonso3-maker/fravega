@@ -237,9 +237,16 @@ const store = {
   del: k => { try { localStorage.removeItem(k); } catch { delete _mem[k]; } },
 };
 const parseJWT = t => { try { return JSON.parse(atob(t.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))); } catch { return null; } };
+const normEmail = email => {
+  email = (email||'').toLowerCase().trim();
+  const parts = email.split('@'); if (parts.length < 2) return email;
+  let local = parts[0], domain = parts[1];
+  if (domain === 'gmail.com' || domain === 'googlemail.com'){ local = local.split('+')[0].replace(/\./g,''); domain = 'gmail.com'; }
+  return local + '@' + domain;
+};
 const isAllowed = email => {
-  const e = (email||'').toLowerCase();
-  if (AUTH_CONFIG.ALLOWED_EMAILS.map(x=>x.toLowerCase()).includes(e)) return true;
+  const e = normEmail(email);
+  if (AUTH_CONFIG.ALLOWED_EMAILS.map(normEmail).includes(e)) return true;
   return AUTH_CONFIG.ALLOWED_DOMAINS.map(x=>x.toLowerCase()).includes(e.split('@')[1]);
 };
 async function apiAuth(credential){
